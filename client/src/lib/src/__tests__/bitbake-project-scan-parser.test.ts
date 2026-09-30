@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
-import { parseRecipesOutput } from '../BitbakeProjectScanParser'
+import { parseLayersOutput, parseRecipesOutput } from '../BitbakeProjectScanParser'
 
 describe('BitBake project scan parser', () => {
   const layers = [
@@ -67,5 +67,41 @@ systemd:
         skipped: expect.stringContaining('skipped:')
       })
     )
+  })
+})
+
+
+describe('BitBake layer scan parser', () => {
+  it('parses layers from bitbake-layers show-layers output', () => {
+    const output = `NOTE: Starting bitbake server...
+layer                 path                                      priority
+==========================================================================
+core                  /work/sources/poky/meta                  5
+meta-poky             /work/sources/poky/meta-poky             5
+meta-openembedded     /work/sources/meta-openembedded           5`
+
+    expect(parseLayersOutput(output)).toEqual([
+      {
+        name: 'core',
+        path: '/work/sources/poky/meta',
+        priority: 5
+      },
+      {
+        name: 'meta-poky',
+        path: '/work/sources/poky/meta-poky',
+        priority: 5
+      },
+      {
+        name: 'meta-openembedded',
+        path: '/work/sources/meta-openembedded',
+        priority: 5
+      }
+    ])
+  })
+
+  it('fails when the layer table cannot be found', () => {
+    expect(() => {
+      parseLayersOutput('no layer table here')
+    }).toThrow('Failed to find layers in bitbake-layers output')
   })
 })

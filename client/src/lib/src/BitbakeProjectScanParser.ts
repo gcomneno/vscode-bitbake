@@ -66,3 +66,37 @@ export function parseRecipesOutput (
 
   return recipes
 }
+
+export function parseLayersOutput (output: string): LayerInfo[] {
+  const outputLines = output.split(/\r?\n/g)
+
+  const layersStartRegex = /^layer *path *priority$/
+  const layersFirstLine = outputLines.findIndex((line) => layersStartRegex.test(line))
+
+  if (layersFirstLine === -1) {
+    logger.error('Failed to find layers in bitbake-layers output')
+    throw new Error('Failed to find layers in bitbake-layers output')
+  }
+
+  const layers: LayerInfo[] = []
+
+  for (const element of outputLines.slice(layersFirstLine + 2)) {
+    const tempElement = element.split(/\s+/)
+
+    const layerElement = {
+      name: tempElement[0],
+      path: tempElement[1],
+      priority: parseInt(tempElement[2])
+    }
+
+    if (
+      layerElement.name !== undefined &&
+      layerElement.path !== undefined &&
+      layerElement.priority !== undefined
+    ) {
+      layers.push(layerElement)
+    }
+  }
+
+  return layers
+}

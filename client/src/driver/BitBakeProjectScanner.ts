@@ -24,7 +24,7 @@ import { runBitbakeTerminalCustomCommand } from '../ui/BitbakeTerminal'
 import { bitbakeESDKMode } from './BitbakeESDK'
 import { finishProcessExecution } from '../utils/ProcessUtils'
 import { extractRecipeName, extractRecipeVersion } from '../lib/src/utils/files'
-import { parseRecipesOutput } from '../lib/src/BitbakeProjectScanParser'
+import { parseLayersOutput, parseRecipesOutput } from '../lib/src/BitbakeProjectScanParser'
 
 interface ScanStatus {
   scanIsRunning: boolean
@@ -244,25 +244,16 @@ export class BitBakeProjectScanner {
     this.hostToContainerMap.clear()
 
     const output = await this.executeBitBakeCommand('bitbake-layers show-layers')
-    const outputLines = output.split(/\r?\n/g)
+    const layers = parseLayersOutput(output)
 
-    const layersStartRegex = /^layer *path *priority$/
-    const layersFirstLine = outputLines.findIndex(line => layersStartRegex.test(line))
-    if (layersFirstLine === -1) {
-      logger.error('Failed to find layers in bitbake-layers output')
-      throw new Error('Failed to find layers in bitbake-layers output')
-    }
+    for (const layer of layers) {
+      const resolvedPath = await this.resolveContainerPath(layer.path)
 
-    for (const element of outputLines.slice(layersFirstLine + 2)) {
-      const tempElement = element.split(/\s+/)
-      const layerElement = {
-        name: tempElement[0],
-        path: await this.resolveContainerPath(tempElement[1]),
-        priority: parseInt(tempElement[2])
-      }
-
-      if ((layerElement.name !== undefined) && (layerElement.path !== undefined) && (layerElement.priority !== undefined)) {
-        this.activeScanResult._layers.push(layerElement as LayerInfo)
+      if (resolvedPath !== undefined) {
+        this.activeScanResult._layers.push({
+          ...layer,
+          path: resolvedPath
+        })
       }
     }
   }
